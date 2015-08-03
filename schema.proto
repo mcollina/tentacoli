@@ -1,0 +1,9 @@
+
+message Message {
+  optional string id = 1;
+  optional Ack ack = 2;
+
+  message Ack {
+    optional string error = 1;
+  }
+}
