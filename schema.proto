@@ -12,5 +12,12 @@ message Message {
     optional string id = 1;
     optional string name = 2;
     optional bool objectMode = 3;
+    optional StreamType type = 4;
   }
+}
+
+enum StreamType {
+  Readable = 1;
+  Writable = 2;
+  Duplex = 3;
 }
