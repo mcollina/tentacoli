@@ -133,7 +133,7 @@ function pipeStream (container) {
     if (container.objectMode) {
       pump(
         container.stream,
-        nos.encoder(),
+        nos.encoder(this._opts),
         dest)
     } else {
       pump(
@@ -148,7 +148,7 @@ function pipeStream (container) {
     if (container.objectMode) {
       pump(
         dest,
-        nos.decoder(),
+        nos.decoder(this._opts),
         container.stream)
     } else {
       pump(
@@ -186,9 +186,9 @@ function unwrapStreams (that, decoded, result) {
         } else if (container.type === messages.StreamType.Readable) {
           // if it is a readble, we close this side
           stream.end()
-          stream = pump(stream, nos.decoder())
+          stream = pump(stream, nos.decoder(that._opts))
         } else if (container.type === messages.StreamType.Writable) {
-          writable = nos.encoder()
+          writable = nos.encoder(that._opts)
           pump(writable, stream)
           stream = writable
         }

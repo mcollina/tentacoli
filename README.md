@@ -139,8 +139,8 @@ their work, look at package.json!
 
 Another great source of inspriation was [jschan](http://npm.im/jschan)
 from which I borrowed a lot of ideas. Thanks [Adrian
-Roussow](https://github.com/AdrianRossouw) for all the talkings about
-microservices, streams and channels.
+Roussow](https://github.com/AdrianRossouw) for all the discussions
+around microservices, streams and channels.
 
 Many thanks to [@mcdonnelldean](http://github.com/mcdonnelldean) for
 providing an excuse to write this random idea out.

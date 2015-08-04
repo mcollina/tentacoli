@@ -6,10 +6,11 @@ var from = require('from2')
 var callback = require('callback-stream')
 var Writable = require('stream').Writable
 var through = require('through2')
+var msgpack = require('msgpack5')
 
-function setup () {
-  var sender = tentacoli()
-  var receiver = tentacoli()
+function setup (opts) {
+  var sender = tentacoli(opts)
+  var receiver = tentacoli(opts)
 
   sender.pipe(receiver).pipe(sender)
 
@@ -149,7 +150,6 @@ test('can pass from receiver to sender a transform stream as a readable streams'
     reply(null, {
       streams$: {
         result: from.obj(['hello', 'streams']).pipe(through.obj(function (chunk, enc, cb) {
-          console.log(chunk)
           cb(null, chunk)
         }))
       }
@@ -206,5 +206,34 @@ test('can pass from sender to receiver an object writable stream', function (t) 
   s.receiver.on('request', function (req, reply) {
     req.streams$.events.end('hello')
     reply()
+  })
+})
+
+test('supports custom encodings', function (t) {
+  t.plan(3)
+
+  var s = setup({ codec: msgpack() })
+  var msg = { cmd: 'subscribe' }
+  var expected = [
+    new Buffer('hello'),
+    new Buffer('streams')
+  ]
+
+  s.sender.request(msg, function (err, res) {
+    t.error(err, 'no error')
+    res.streams$.result.pipe(callback.obj(function (err, list) {
+      t.error(err, 'no error')
+      t.deepEqual(list, expected, 'is passed through correctly')
+    }))
+  })
+
+  s.receiver.on('request', function (req, reply) {
+    reply(null, {
+      streams$: {
+        result: from.obj(expected).pipe(through.obj(function (chunk, enc, cb) {
+          cb(null, chunk)
+        }))
+      }
+    })
   })
 })
