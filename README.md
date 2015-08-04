@@ -5,6 +5,7 @@ Multiplexing requests and streams over a single connection since 2015.
 * [Install](#install)
 * [Example](#example)
 * [API](#api)
+* [TODO](#todo)
 * [Acknowledgements](#acknowledgements)
 * [License](#license)
 
@@ -127,6 +128,22 @@ The `'request'` event is emitted when there is an incoming request.
     follows the standard node callback pattern: `reply(err, res).`
     The `res.streams$` property should contain all the streams
     that need to be forwarded to the other peer.
+
+<a name="todo"></a>
+## TODO
+
+* [ ] battle test it, you can definitely help! I am particularly
+  concerned about error handling, I do not want tentacoli to crash
+  your process.
+* [ ] figure out how to handle reconnects.
+* [ ] provide examples, with WebSockets (via
+  [websocket-stream](http://npm.im/websocket-stream) net, SSL, etc..
+* [ ] provide an example where a request is forwarded sender -> router
+  -> receiver. With streams!
+* [ ] tentacoli needs a microservice framework as its companion, but it
+  is framework agnostic. We should build a
+  [seneca](http://npm.im/seneca) transport and probably something more
+  lean too.
 
 <a name="acknowledgements"></a>
 ## Acknowledgements
