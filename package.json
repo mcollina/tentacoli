@@ -30,6 +30,7 @@
   "homepage": "https://github.com/mcollina/tentacoli#readme",
   "devDependencies": {
     "faucet": "0.0.1",
+    "from2": "^2.1.0",
     "pre-commit": "^1.0.10",
     "standard": "^4.5.4",
     "tape": "^4.0.1"
@@ -40,6 +41,7 @@
     "multiplex": "^6.2.2",
     "net-object-stream": "^1.0.0",
     "protocol-buffers": "^3.1.2",
+    "shallow-copy": "0.0.1",
     "uuid": "^2.0.1"
   }
 }

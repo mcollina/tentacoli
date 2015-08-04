@@ -9,6 +9,7 @@ var Multiplex = require('multiplex')
 var uuid = require('uuid')
 var nos = require('net-object-stream')
 var callbackStream = require('callback-stream')
+var copy = require('shallow-copy')
 var UUIDregexp = /[^-]{8}-[^-]{4}-[^-]{4}-[^-]{4}-[^-]{12}/
 
 function Tentacoli (opts) {
@@ -39,14 +40,7 @@ function Tentacoli (opts) {
       }
 
       var decoded = messages.Message.decode(Buffer.concat(list))
-      var restream
-
-      if (that._waiting[decoded.id]) {
-        restream = that._waiting[decoded.id]
-        delete that._waiting[decoded.id]
-      } else {
-        restream = that.receiveStream(decoded.id, { halfOpen: true })
-      }
+      var restream = waitingOrReceived(that, decoded.id)
 
       var dataStream = nos(restream, that._opts)
       var response = {
@@ -77,12 +71,54 @@ function Tentacoli (opts) {
             return
           }
 
+          if (result && result.streams$) {
+            response.streams = Object.keys(result.streams$)
+              .map(mapStream, result.streams$)
+              .map(pipeStream, that)
+
+            result = copy(result)
+            delete result.streams$
+          }
+
           stream.end(messages.Message.encode(response))
           dataStream.end(result)
         })
       }))
     }))
   })
+}
+
+function mapStream (key) {
+  // this is the streams$ object
+  return {
+    id: uuid.v4(),
+    name: key,
+    objectMode: this[key]._readableState.objectMode,
+    stream: this[key]
+  }
+}
+
+function pipeStream (container) {
+  // this is the tentacoli instance
+  var dest = this.createStream(container.id)
+  if (container.objectMode) {
+    dest = nos(dest)
+  }
+  container.stream.pipe(dest)
+  return container
+}
+
+function waitingOrReceived (that, id) {
+  var stream
+
+  if (that._waiting[id]) {
+    stream = that._waiting[id]
+    delete that._waiting[id]
+  } else {
+    stream = that.receiveStream(id, { halfOpen: true })
+  }
+
+  return stream
 }
 
 inherits(Tentacoli, Multiplex)
@@ -99,6 +135,8 @@ Tentacoli.prototype.request = function (msg, callback) {
   this._requests[req.id] = req
 
   var stream = this.createStream(null, { halfOpen: true })
+  var decoded
+  var result
 
   stream.end(encoded)
 
@@ -108,9 +146,14 @@ Tentacoli.prototype.request = function (msg, callback) {
       return callback(err)
     }
 
-    var decoded = messages.Message.decode(Buffer.concat(list))
+    decoded = messages.Message.decode(Buffer.concat(list))
+
     if (!req.acked && decoded.ack && decoded.ack.error) {
+      req.acked = true
+      req.stream.destroy()
       callback(new Error(decoded.ack.error))
+    } else {
+      doResponse()
     }
   }))
 
@@ -123,15 +166,35 @@ Tentacoli.prototype.request = function (msg, callback) {
         return callback(err)
       }
 
-      if (!req.acked && list.length > 0) {
-        req.acked = true
-        list.unshift(null)
-        callback.apply(null, list)
-      }
+      result = list
+
+      doResponse()
     }))
 
     req.stream.end(msg)
   })
+
+  function doResponse () {
+    if (!decoded || !result || req.acked) {
+      // wait for the other
+      return
+    }
+
+    if (decoded.streams.length > 0) {
+      result[0].streams$ = decoded.streams.reduce(function (acc, container) {
+        var stream = waitingOrReceived(that, container.id)
+        if (container.objectMode) {
+          stream = nos(stream)
+        }
+        acc[container.name] = stream
+        return acc
+      }, {})
+    }
+
+    req.acked = true
+    result.unshift(null)
+    callback.apply(null, result)
+  }
 
   return this
 }
