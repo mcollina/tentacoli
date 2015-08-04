@@ -59,6 +59,8 @@ function Tentacoli (opts) {
           return
         }
 
+        unwrapStreams(that, decoded, list)
+
         var toCall = list
         if (list.length === 1) {
           toCall = list[0]
@@ -72,14 +74,7 @@ function Tentacoli (opts) {
             return
           }
 
-          if (result && result.streams$) {
-            response.streams = Object.keys(result.streams$)
-              .map(mapStream, result.streams$)
-              .map(pipeStream, that)
-
-            result = copy(result)
-            delete result.streams$
-          }
+          result = wrapStreams(that, result, response)
 
           stream.end(messages.Message.encode(response))
           dataStream.end(result)
@@ -87,6 +82,19 @@ function Tentacoli (opts) {
       }))
     }))
   })
+}
+
+function wrapStreams (that, result, msg) {
+  if (result && result.streams$) {
+    msg.streams = Object.keys(result.streams$)
+      .map(mapStream, result.streams$)
+      .map(pipeStream, that)
+
+    result = copy(result)
+    delete result.streams$
+  }
+
+  return result
 }
 
 function mapStream (key) {
@@ -167,6 +175,30 @@ function waitingOrReceived (that, id) {
   return stream
 }
 
+function unwrapStreams (that, decoded, result) {
+  if (decoded.streams.length > 0) {
+    result[0].streams$ = decoded.streams.reduce(function (acc, container) {
+      var stream = waitingOrReceived(that, container.id)
+      var writable
+      if (container.objectMode) {
+        if (container.type === messages.StreamType.Duplex) {
+          stream = nos(stream)
+        } else if (container.type === messages.StreamType.Readable) {
+          // if it is a readble, we close this side
+          stream.end()
+          stream = pump(stream, nos.decoder())
+        } else if (container.type === messages.StreamType.Writable) {
+          writable = nos.encoder()
+          pump(writable, stream)
+          stream = writable
+        }
+      }
+      acc[container.name] = stream
+      return acc
+    }, {})
+  }
+}
+
 inherits(Tentacoli, Multiplex)
 
 Tentacoli.prototype.request = function (msg, callback) {
@@ -176,6 +208,9 @@ Tentacoli.prototype.request = function (msg, callback) {
     callback: callback,
     acked: false
   }
+
+  msg = wrapStreams(that, msg, req)
+
   var encoded = messages.Message.encode(req)
 
   this._requests[req.id] = req
@@ -217,6 +252,8 @@ Tentacoli.prototype.request = function (msg, callback) {
       doResponse()
     }))
 
+    msg = wrapStreams(that, msg, req)
+
     req.stream.end(msg)
   })
 
@@ -226,27 +263,7 @@ Tentacoli.prototype.request = function (msg, callback) {
       return
     }
 
-    if (decoded.streams.length > 0) {
-      result[0].streams$ = decoded.streams.reduce(function (acc, container) {
-        var stream = waitingOrReceived(that, container.id)
-        var writable
-        if (container.objectMode) {
-          if (container.type === messages.StreamType.Duplex) {
-            stream = nos(stream)
-          } else if (container.type === messages.StreamType.Readable) {
-            // if it is a readble, we close this side
-            stream.end()
-            stream = pump(stream, nos.decoder())
-          } else if (container.type === messages.StreamType.Writable) {
-            writable = nos.encoder()
-            pump(writable, stream)
-            stream = writable
-          }
-        }
-        acc[container.name] = stream
-        return acc
-      }, {})
-    }
+    unwrapStreams(that, decoded, result)
 
     req.acked = true
     result.unshift(null)

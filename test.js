@@ -55,7 +55,7 @@ test('can pass through an object', function (t) {
   })
 })
 
-test('can pass through object readable streams', function (t) {
+test('can pass from receiver to sender an object readable stream', function (t) {
   t.plan(3)
 
   var s = setup()
@@ -78,7 +78,7 @@ test('can pass through object readable streams', function (t) {
   })
 })
 
-test('can pass through object writable streams', function (t) {
+test('can pass from receiver to sender a writable stream', function (t) {
   t.plan(2)
 
   var s = setup()
@@ -103,7 +103,7 @@ test('can pass through object writable streams', function (t) {
   })
 })
 
-test('can pass through a transform stream as a writable', function (t) {
+test('can pass from receiver to sender a transform stream as a writable', function (t) {
   t.plan(2)
 
   var s = setup()
@@ -131,7 +131,7 @@ test('can pass through a transform stream as a writable', function (t) {
   })
 })
 
-test('can pass through a transform stream as a readable streams', function (t) {
+test('can pass from receiver to sender a transform stream as a readable streams', function (t) {
   t.plan(3)
 
   var s = setup()
@@ -154,5 +154,57 @@ test('can pass through a transform stream as a readable streams', function (t) {
         }))
       }
     })
+  })
+})
+
+test('can pass from sender to receiver an object readable stream', function (t) {
+  t.plan(3)
+
+  var s = setup()
+  var msg = {
+    cmd: 'publish',
+    streams$: {
+      events: from.obj(['hello', 'streams'])
+    }
+  }
+
+  s.sender.request(msg, function (err, res) {
+    t.error(err, 'no error')
+  })
+
+  s.receiver.on('request', function (req, reply) {
+    req.streams$.events.pipe(callback.obj(function (err, list) {
+      t.error(err, 'no error')
+      t.deepEqual(list, ['hello', 'streams'], 'is passed through correctly')
+      reply()
+    }))
+  })
+})
+
+test('can pass from sender to receiver an object writable stream', function (t) {
+  t.plan(2)
+
+  var s = setup()
+  var writable = new Writable({ objectMode: true })
+
+  writable._write = function (chunk, enc, cb) {
+    t.deepEqual(chunk, 'hello', 'chunk match')
+    cb()
+  }
+
+  var msg = {
+    cmd: 'subscribe',
+    streams$: {
+      events: writable
+    }
+  }
+
+  s.sender.request(msg, function (err, res) {
+    t.error(err, 'no error')
+  })
+
+  s.receiver.on('request', function (req, reply) {
+    req.streams$.events.end('hello')
+    reply()
   })
 })
