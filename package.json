@@ -29,6 +29,7 @@
   },
   "homepage": "https://github.com/mcollina/tentacoli#readme",
   "devDependencies": {
+    "fastbench": "^1.0.0",
     "faucet": "0.0.1",
     "from2": "^2.1.0",
     "msgpack5": "^3.1.0",
