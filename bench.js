@@ -40,7 +40,7 @@ function buildPingPong (cb) {
 buildPingPong(function (err, benchPingPong) {
   if (err) throw err
 
-  var run = bench([benchPingPong], 1000)
+  var run = bench([benchPingPong], 10000)
 
   run(function (err) {
     if (err) throw err

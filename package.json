@@ -39,7 +39,6 @@
     "through2": "^2.0.0"
   },
   "dependencies": {
-    "callback-stream": "^1.1.0",
     "inherits": "^2.0.1",
     "multiplex": "^6.2.2",
     "net-object-stream": "^1.1.0",

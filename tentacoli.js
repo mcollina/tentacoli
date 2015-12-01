@@ -8,10 +8,12 @@ var messages = protobuf(schema)
 var Multiplex = require('multiplex')
 var uuid = require('uuid')
 var nos = require('net-object-stream')
-var callbackStream = require('callback-stream')
 var copy = require('shallow-copy')
 var pump = require('pump')
 var UUIDregexp = /[^-]{8}-[^-]{4}-[^-]{4}-[^-]{4}-[^-]{12}/
+var messageCodec = {
+  codec: messages.Message
+}
 
 function Tentacoli (opts) {
   if (!(this instanceof Tentacoli)) {
@@ -19,82 +21,90 @@ function Tentacoli (opts) {
   }
 
   this._requests = {}
-  this._opts = opts
+  this._opts = opts || {}
   this._waiting = {}
+
+  this._opts.codec = this._opts.codec || {
+    encode: JSON.stringify,
+    decode: JSON.parse
+  }
   // TODO clean up waiting streams that are left there
 
   var that = this
-  Multiplex.call(this, function (stream, id) {
-
-    stream.halfOpen = true
+  Multiplex.call(this, function newStream (stream, id) {
 
     if (id.match(UUIDregexp)) {
       this._waiting[id] = stream
       return
     }
 
-    stream.pipe(callbackStream(function (err, list) {
-      if (err) {
-        that.emit('headerError', err)
-        stream.destroy()
-        return
-      }
+    var decoder = nos.decoder(messageCodec)
+    var encoder = nos.encoder(messageCodec)
 
-      var decoded = messages.Message.decode(Buffer.concat(list))
-      var restream = waitingOrReceived(that, decoded.id)
+    pump(stream, decoder)
+    pump(encoder, stream)
 
-      var dataStream = nos(restream, that._opts)
+    // TODO use fastq instead
+    decoder.on('data', function (decoded) {
       var response = {
         id: decoded.id,
-        ack: {
-          error: null
-        }
+        error: null
       }
 
-      dataStream.pipe(callbackStream.obj(function (err, list) {
+      var toCall = that._opts.codec.decode(decoded.data)
+
+      unwrapStreams(that, toCall, decoded)
+
+      // TODO use reusify for reply
+      that.emit('request', toCall, function reply (err, result) {
         if (err) {
-          that.emit('requestError', err)
-          response.ack.error = err.message
-          stream.end(messages.Message.encode(response))
-          return
+          that.emit('responseError', err)
+          response.error = err.message
+        } else {
+          wrapStreams(that, result, response)
         }
+        encoder.write(response)
+      })
+    })
+  })
 
-        unwrapStreams(that, decoded, list)
+  this._main = this.createStream(null)
+  this._mainWritable = nos.encoder(messageCodec)
+  pump(this._mainWritable, this._main)
+  this._mainReadable = pump(this._main, nos.decoder(messageCodec))
 
-        var toCall = list
-        if (list.length === 1) {
-          toCall = list[0]
-        }
+  // use fastq instead
+  this._mainReadable.on('data', function (msg) {
+    var req = that._requests[msg.id]
+    var err = null
+    var data = null
 
-        that.emit('request', toCall, function reply (err, result) {
-          if (err) {
-            that.emit('responseError', err)
-            response.ack.error = err.message
-            stream.end(messages.Message.encode(response))
-            return
-          }
+    delete that._requests[msg.id]
 
-          result = wrapStreams(that, result, response)
+    if (msg.error) {
+      err = new Error(msg.error)
+    } else if (msg.data) {
+      data = that._opts.codec.decode(msg.data)
+      unwrapStreams(that, data, msg)
+    }
 
-          stream.end(messages.Message.encode(response))
-          dataStream.end(result)
-        })
-      }))
-    }))
+    req.callback(err, data)
   })
 }
 
-function wrapStreams (that, result, msg) {
-  if (result && result.streams$) {
-    msg.streams = Object.keys(result.streams$)
-      .map(mapStream, result.streams$)
+function wrapStreams (that, data, msg) {
+  if (data && data.streams$) {
+    msg.streams = Object.keys(data.streams$)
+      .map(mapStream, data.streams$)
       .map(pipeStream, that)
 
-    result = copy(result)
-    delete result.streams$
+    data = copy(data)
+    delete data.streams$
   }
 
-  return result
+  msg.data = that._opts.codec.encode(data)
+
+  return msg
 }
 
 function mapStream (key) {
@@ -175,9 +185,9 @@ function waitingOrReceived (that, id) {
   return stream
 }
 
-function unwrapStreams (that, decoded, result) {
+function unwrapStreams (that, data, decoded) {
   if (decoded.streams.length > 0) {
-    result[0].streams$ = decoded.streams.reduce(function (acc, container) {
+    data.streams$ = decoded.streams.reduce(function (acc, container) {
       var stream = waitingOrReceived(that, container.id)
       var writable
       if (container.objectMode) {
@@ -201,74 +211,18 @@ function unwrapStreams (that, decoded, result) {
 
 inherits(Tentacoli, Multiplex)
 
-Tentacoli.prototype.request = function (msg, callback) {
+Tentacoli.prototype.request = function (data, callback) {
   var that = this
   var req = {
     id: uuid.v4(),
-    callback: callback,
-    acked: false
+    callback: callback
   }
 
-  msg = wrapStreams(that, msg, req)
-
-  var encoded = messages.Message.encode(req)
+  wrapStreams(that, data, req)
 
   this._requests[req.id] = req
 
-  var stream = this.createStream(null, { halfOpen: true })
-  var decoded
-  var result
-
-  stream.end(encoded)
-
-  stream.pipe(callbackStream(function (err, list) {
-    if (err) {
-      // TODO cleanup request stream?
-      return callback(err)
-    }
-
-    decoded = messages.Message.decode(Buffer.concat(list))
-
-    if (!req.acked && decoded.ack && decoded.ack.error) {
-      req.acked = true
-      req.stream.destroy()
-      callback(new Error(decoded.ack.error))
-    } else {
-      doResponse()
-    }
-  }))
-
-  stream.on('finish', function () {
-    req.stream = nos(that.createStream(req.id, { halfOpen: true }), that._opts)
-
-    req.stream.pipe(callbackStream.obj(function (err, list) {
-      if (err) {
-        // TODO cleanup other stream?
-        return callback(err)
-      }
-
-      result = list
-
-      doResponse()
-    }))
-
-    msg = wrapStreams(that, msg, req)
-
-    req.stream.end(msg)
-  })
-
-  function doResponse () {
-    if (!decoded || !result || req.acked) {
-      // wait for the other
-      return
-    }
-
-    unwrapStreams(that, decoded, result)
-
-    req.acked = true
-    result.unshift(null)
-    callback.apply(null, result)
-  }
+  this._mainWritable.write(req)
 
   return this
 }

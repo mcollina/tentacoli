@@ -1,12 +1,9 @@
 
 message Message {
   optional string id = 1;
-  optional Ack ack = 2;
-  repeated Stream streams = 3;
-
-  message Ack {
-    optional string error = 1;
-  }
+  optional string error = 2;
+  optional bytes data = 3;
+  repeated Stream streams = 4;
 
   message Stream {
     optional string id = 1;
