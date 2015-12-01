@@ -10,6 +10,7 @@ var uuid = require('uuid')
 var nos = require('net-object-stream')
 var copy = require('shallow-copy')
 var pump = require('pump')
+var reusify = require('reusify')
 var UUIDregexp = /[^-]{8}-[^-]{4}-[^-]{4}-[^-]{4}-[^-]{12}/
 var messageCodec = {
   codec: messages.Message
@@ -23,6 +24,7 @@ function Tentacoli (opts) {
   this._requests = {}
   this._opts = opts || {}
   this._waiting = {}
+  this._replyPool = reusify(Reply)
 
   this._opts.codec = this._opts.codec || {
     encode: JSON.stringify,
@@ -55,16 +57,13 @@ function Tentacoli (opts) {
 
       unwrapStreams(that, toCall, decoded)
 
+      var reply = that._replyPool.get()
+
+      reply.encoder = encoder
+      reply.response = response
+
       // TODO use reusify for reply
-      that.emit('request', toCall, function reply (err, result) {
-        if (err) {
-          that.emit('responseError', err)
-          response.error = err.message
-        } else {
-          wrapStreams(that, result, response)
-        }
-        encoder.write(response)
-      })
+      that.emit('request', toCall, reply.func)
     })
   })
 
@@ -90,6 +89,27 @@ function Tentacoli (opts) {
 
     req.callback(err, data)
   })
+
+  var self = this
+  function Reply () {
+    this.response = null
+    this.encoder = null
+
+    var that = this
+
+    this.func = function reply (err, result) {
+      if (err) {
+        self.emit('responseError', err)
+        self.response.error = err.message
+      } else {
+        wrapStreams(self, result, that.response)
+      }
+      that.encoder.write(that.response)
+      that.response = null
+      that.encoder = null
+      self._replyPool.release(that)
+    }
+  }
 }
 
 function wrapStreams (that, data, msg) {
