@@ -33,6 +33,7 @@
     "fastbench": "^1.0.0",
     "faucet": "0.0.1",
     "from2": "^2.1.0",
+    "minimist": "^1.2.0",
     "msgpack5": "^3.1.0",
     "pre-commit": "^1.0.10",
     "standard": "^4.5.4",
