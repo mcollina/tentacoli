@@ -21,10 +21,22 @@ server.listen(port, function (err) {
   if (process.send) {
     process.send(server.address())
   } else {
-    console.log('listening on', server.address().port)
+    console.error('listening on', server.address().port)
   }
 })
 
 process.on('disconnect', function () {
   process.exit(0)
 })
+
+var signal = 'SIGINT'
+
+// Cleanly shut down process on SIGTERM to ensure that perf-<pid>.map gets flushed
+process.on(signal, onSignal)
+
+function onSignal () {
+  // IMPORTANT to log on stderr, to not clutter stdout which is purely for data, i.e. dtrace stacks
+  console.error('Caught', signal, ', shutting down.')
+  server.close()
+  process.exit(0)
+}

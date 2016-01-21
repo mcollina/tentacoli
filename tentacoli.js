@@ -47,11 +47,8 @@ function Tentacoli (opts) {
     pump(encoder, stream)
 
     // TODO use fastq instead
-    decoder.on('data', function (decoded) {
-      var response = {
-        id: decoded.id,
-        error: null
-      }
+    decoder.on('data', function decodeAndParse (decoded) {
+      var response = new Response(decoded.id)
 
       var toCall = that._opts.codec.decode(decoded.data)
 
@@ -62,7 +59,6 @@ function Tentacoli (opts) {
       reply.encoder = encoder
       reply.response = response
 
-      // TODO use reusify for reply
       that.emit('request', toCall, reply.func)
     })
   })
@@ -110,6 +106,11 @@ function Tentacoli (opts) {
       self._replyPool.release(that)
     }
   }
+}
+
+function Response (id) {
+  this.id = id
+  this.error = null
 }
 
 function wrapStreams (that, data, msg) {

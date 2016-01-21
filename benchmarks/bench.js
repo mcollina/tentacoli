@@ -6,6 +6,7 @@ var pump = require('pump')
 var net = require('net')
 var childProcess = require('child_process')
 var path = require('path')
+var parallel = require('fastparallel')()
 var tentacoli = require('../')
 
 var argv = minimist(process.argv.slice(2), {
@@ -41,13 +42,25 @@ function buildPingPong (cb) {
   function start (addr) {
     var client = net.connect(addr.port, addr.host)
 
-    pump(client, sender, client)
+    client.on('connect', function () {
+      cb(null, benchPingPong)
 
-    clearTimeout(timer)
-    cb(null, benchPingPong)
+      clearTimeout(timer)
+    })
+
+    pump(client, sender, client)
   }
 
+  var functions = [
+    sendEcho, sendEcho, sendEcho, sendEcho, sendEcho,
+    sendEcho, sendEcho, sendEcho, sendEcho, sendEcho
+  ]
+
   function benchPingPong (cb) {
+    parallel(null, functions, null, cb)
+  }
+
+  function sendEcho (arg, cb) {
     sender.request({
       cmd: 'ping'
     }, cb)
@@ -57,7 +70,7 @@ function buildPingPong (cb) {
 buildPingPong(function (err, benchPingPong) {
   if (err) throw err
 
-  var run = bench([benchPingPong], 10000)
+  var run = bench([benchPingPong], 1000)
 
   run(function (err) {
     if (err) throw err
