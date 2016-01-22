@@ -44,7 +44,6 @@ function buildPingPong (cb) {
 
     client.on('connect', function () {
       cb(null, benchPingPong)
-
       clearTimeout(timer)
     })
 
@@ -60,7 +59,7 @@ function buildPingPong (cb) {
     parallel(null, functions, null, cb)
   }
 
-  function sendEcho (arg, cb) {
+  function sendEcho (cb) {
     sender.request({
       cmd: 'ping'
     }, cb)
