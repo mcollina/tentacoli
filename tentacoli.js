@@ -3,7 +3,7 @@
 var inherits = require('inherits')
 var protobuf = require('protocol-buffers')
 var fs = require('fs')
-var schema = fs.readFileSync(__dirname + '/schema.proto')
+var schema = fs.readFileSync(__dirname + '/schema.proto', 'utf8')
 var messages = protobuf(schema)
 var Multiplex = require('multiplex')
 var uuid = require('uuid')
