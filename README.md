@@ -147,6 +147,73 @@ The `'request'` event is emitted when there is an incoming request.
 
 ## In the Browser
 
+You will use [websocket-stream](http://npm.im/websocket-stream) to
+wire tentacoli to the websocket.
+
+On the server:
+```js
+'use strict'
+
+var http = require('http')
+var tentacoli = require('./')
+var pump = require('pump')
+var websocket = require('websocket-stream')
+var server = http.createServer(serve)
+
+websocket.createServer({
+  server: server
+}, handle)
+
+function handle (sock) {
+  var receiver = tentacoli()
+  pump(sock, receiver, sock)
+  receiver.on('request', function request (req, reply) {
+    // just echo
+    reply(null, req)
+  })
+}
+
+server.listen(3000, function (err) {
+  if (err) throw err
+  console.error('listening on', server.address().port)
+})
+```
+
+On the client:
+```js
+'use strict'
+
+var tentacoli = require('../')
+var ws = require('websocket-stream')
+var pump = require('pump')
+var from = require('from2')
+
+var URL = require('url')
+var serverOpts = URL.parse(document.URL)
+serverOpts.path = undefined
+serverOpts.pathname = undefined
+serverOpts.protocol = 'ws'
+var server = URL.format(serverOpts)
+
+var stream = ws(server)
+var instance = tentacoli()
+
+pump(stream, instance, stream)
+
+instance.request({
+  streams$: {
+    inStream: from.obj(['hello', 'world'])
+  }
+}, function (err, data) {
+  if (err) throw err
+
+  var res = data.streams$.inStream
+  res.on('data', function (chunk) {
+    console.log(chunk)
+  })
+})
+```
+
 ### with Browserify
 
 [Browserify](http://npm.im/browserify) offers a way of packaging up this
@@ -169,7 +236,7 @@ You should install webpack,
 [transform-loader](http://npm.im/transform-loader) and [brfs](http://npm.im/brfs):
 
 ```
-npm i webpack transform-loader brfs --save
+npm i webpack transform-loader brfs websocket-stream --save
 ```
 
 Then, set this as your webpack configuration:
