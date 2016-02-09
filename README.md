@@ -136,7 +136,7 @@ The `'request'` event is emitted when there is an incoming request.
   concerned about error handling, I do not want tentacoli to crash
   your process.
 * [ ] figure out how to handle reconnects.
-* [ ] provide examples, with WebSockets (via
+* [x] provide examples, with WebSockets (via
   [websocket-stream](http://npm.im/websocket-stream) net, SSL, etc..
 * [ ] provide an example where a request is forwarded sender -> router
   -> receiver. With streams!
@@ -144,6 +144,52 @@ The `'request'` event is emitted when there is an incoming request.
   is framework agnostic. We should build a
   [seneca](http://npm.im/seneca) transport and probably something more
   lean too.
+
+## In the Browser
+
+### with Browserify
+
+[Browserify](http://npm.im/browserify) offers a way of packaging up this
+module for front-end usage. You will just need to install/specify the
+[brfs](http://npm.im/brfs) transform.
+
+As an example:
+
+```
+browserify -t brfs tentacoli.js > bundle.js
+```
+
+### with WebPack
+
+[WebPack](http://npm.im/webpack) offers the more popular way of packaging
+up node modules for browser usage. You will just need to install/specify the
+[brfs](http://npm.im/brfs) transform.
+
+You should install webpack,
+[transform-loader](http://npm.im/transform-loader) and [brfs](http://npm.im/brfs):
+
+```
+npm i webpack transform-loader brfs --save
+```
+
+Then, set this as your webpack configuration:
+
+```
+'use strict'
+
+module.exports = {
+  module: {
+    postLoaders: [{
+      loader: "transform?brfs"
+    }]
+  }
+}
+```
+
+To build:
+```
+webpack --config webpack.config.js yourfile.js build.js
+```
 
 <a name="acknowledgements"></a>
 ## Acknowledgements
