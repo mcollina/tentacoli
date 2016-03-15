@@ -70,8 +70,6 @@ function Tentacoli (opts) {
       var data = stream.read(null)
       parser.parse(data)
     }
-
-    // TODO handle errors?
   })
 
   var main = this._main = this.createStream(null)
