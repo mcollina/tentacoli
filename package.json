@@ -52,6 +52,7 @@
     "zuul": "^3.9.0"
   },
   "dependencies": {
+    "fastq": "^1.3.0",
     "inherits": "^2.0.1",
     "multiplex": "^6.2.2",
     "net-object-stream": "^1.1.0",

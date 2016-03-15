@@ -11,6 +11,7 @@ var nos = require('net-object-stream')
 var copy = require('shallow-copy')
 var pump = require('pump')
 var reusify = require('reusify')
+var fastq = require('fastq')
 var UUIDregexp = /[^-]{8}-[^-]{4}-[^-]{4}-[^-]{4}-[^-]{12}/
 var messageCodec = {
   codec: messages.Message
@@ -33,6 +34,14 @@ function Tentacoli (opts) {
   // TODO clean up waiting streams that are left there
 
   var that = this
+
+  var qIn = this._qIn = fastq(workIn, that._opts.maxInfligth || 100)
+
+  function workIn (msg, cb) {
+    msg.callback = cb
+    that.emit('request', msg.toCall, msg.func)
+  }
+
   Multiplex.call(this, function newStream (stream, id) {
 
     if (id.match(UUIDregexp)) {
@@ -40,36 +49,36 @@ function Tentacoli (opts) {
       return
     }
 
-    var decoder = nos.decoder(messageCodec)
-    var encoder = nos.encoder(messageCodec)
+    var parser = nos.parser(messageCodec)
 
-    pump(stream, decoder)
-    pump(encoder, stream)
-
-    // TODO use fastq instead
-    decoder.on('data', function decodeAndParse (decoded) {
+    parser.on('message', function (decoded) {
       var response = new Response(decoded.id)
-
       var toCall = that._opts.codec.decode(decoded.data)
-
       unwrapStreams(that, toCall, decoded)
 
       var reply = that._replyPool.get()
 
-      reply.encoder = encoder
+      reply.toCall = toCall
+      reply.stream = stream
       reply.response = response
-
-      that.emit('request', toCall, reply.func)
+      qIn.push(reply, parseInBatch)
     })
+
+    stream.on('readable', parseInBatch)
+
+    function parseInBatch () {
+      var data = stream.read(null)
+      parser.parse(data)
+    }
+
+    // TODO handle errors?
   })
 
-  this._main = this.createStream(null)
-  this._mainWritable = nos.encoder(messageCodec)
-  pump(this._mainWritable, this._main)
-  this._mainReadable = pump(this._main, nos.decoder(messageCodec))
+  var main = this._main = this.createStream(null)
 
-  // use fastq instead
-  this._mainReadable.on('data', function (msg) {
+  var qOut = this._qOut = fastq(work, that._opts.maxInfligth || 100)
+
+  function work (msg, cb) {
     var req = that._requests[msg.id]
     var err = null
     var data = null
@@ -84,12 +93,36 @@ function Tentacoli (opts) {
     }
 
     req.callback(err, data)
+
+    // handle backpressure in the req.callback
+    cb()
+  }
+
+  var parser = this._parser = nos.parser(messageCodec)
+
+  this._parser.on('message', function (msg) {
+    qOut.push(msg, parseBatch)
   })
+
+  this._main.on('readable', parseBatch)
+
+  function parseBatch (err) {
+    if (err) {
+      that.emit('error', err)
+      return
+    }
+    parser.parse(main.read(null))
+  }
+
+  this._main.on('error', this.emit.bind(this, 'error'))
+  this._parser.on('error', this.emit.bind(this, 'error'))
 
   var self = this
   function Reply () {
     this.response = null
-    this.encoder = null
+    this.stream = null
+    this.callback = noop
+    this.toCall = null
 
     var that = this
 
@@ -100,10 +133,14 @@ function Tentacoli (opts) {
       } else {
         wrapStreams(self, result, that.response)
       }
-      that.encoder.write(that.response)
+      nos.writeToStream(that.response, messageCodec, that.stream)
+      var cb = that.callback
       that.response = null
-      that.encoder = null
+      that.stream = null
+      that.callback = noop
+      that.toCall = null
       self._replyPool.release(that)
+      cb()
     }
   }
 }
@@ -232,20 +269,25 @@ function unwrapStreams (that, data, decoded) {
 
 inherits(Tentacoli, Multiplex)
 
+function Request (callback) {
+  this.id = uuid.v4()
+  this.callback = callback
+  this.data = null
+}
+
 Tentacoli.prototype.request = function (data, callback) {
   var that = this
-  var req = {
-    id: uuid.v4(),
-    callback: callback
-  }
+  var req = new Request(callback)
 
   wrapStreams(that, data, req)
 
   this._requests[req.id] = req
 
-  this._mainWritable.write(req)
+  nos.writeToStream(req, messageCodec, this._main)
 
   return this
 }
+
+function noop () {}
 
 module.exports = Tentacoli

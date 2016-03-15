@@ -50,10 +50,12 @@ function buildPingPong (cb) {
     pump(client, sender, client)
   }
 
-  var functions = [
-    sendEcho, sendEcho, sendEcho, sendEcho, sendEcho,
-    sendEcho, sendEcho, sendEcho, sendEcho, sendEcho
-  ]
+  var max = 1000
+  var functions = new Array(max)
+
+  for (var i = 0; i < max; i++) {
+    functions[i] = sendEcho
+  }
 
   function benchPingPong (cb) {
     parallel(null, functions, null, cb)
@@ -62,14 +64,16 @@ function buildPingPong (cb) {
   function sendEcho (cb) {
     sender.request({
       cmd: 'ping'
-    }, cb)
+    }, function () {
+      cb()
+    })
   }
 }
 
 buildPingPong(function (err, benchPingPong) {
   if (err) throw err
 
-  var run = bench([benchPingPong], 1000)
+  var run = bench([benchPingPong], 100)
 
   run(function (err) {
     if (err) throw err
