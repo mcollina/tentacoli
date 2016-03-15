@@ -6,13 +6,12 @@ var fs = require('fs')
 var schema = fs.readFileSync(__dirname + '/schema.proto', 'utf8')
 var messages = protobuf(schema)
 var Multiplex = require('multiplex')
-var uuid = require('uuid')
 var nos = require('net-object-stream')
 var copy = require('shallow-copy')
 var pump = require('pump')
 var reusify = require('reusify')
 var fastq = require('fastq')
-var UUIDregexp = /[^-]{8}-[^-]{4}-[^-]{4}-[^-]{4}-[^-]{12}/
+var streamRegexp = /stream-[\d]+/
 var messageCodec = {
   codec: messages.Message
 }
@@ -26,6 +25,7 @@ function Tentacoli (opts) {
   this._opts = opts || {}
   this._waiting = {}
   this._replyPool = reusify(Reply)
+  this._nextId = 0
 
   this._opts.codec = this._opts.codec || {
     encode: JSON.stringify,
@@ -43,8 +43,7 @@ function Tentacoli (opts) {
   }
 
   Multiplex.call(this, function newStream (stream, id) {
-
-    if (id.match(UUIDregexp)) {
+    if (id.match(streamRegexp)) {
       this._waiting[id] = stream
       return
     }
@@ -183,7 +182,7 @@ function mapStream (key) {
 
   // this is the streams$ object
   return {
-    id: uuid.v4(),
+    id: null,
     name: key,
     objectMode: objectMode,
     stream: stream,
@@ -193,6 +192,7 @@ function mapStream (key) {
 
 function pipeStream (container) {
   // this is the tentacoli instance
+  container.id = 'stream-' + this._nextId++
   var dest = this.createStream(container.id)
 
   if (container.type === messages.StreamType.Readable ||
@@ -269,15 +269,15 @@ function unwrapStreams (that, data, decoded) {
 
 inherits(Tentacoli, Multiplex)
 
-function Request (callback) {
-  this.id = uuid.v4()
+function Request (parent, callback) {
+  this.id = 'req-' + parent._nextId++
   this.callback = callback
   this.data = null
 }
 
 Tentacoli.prototype.request = function (data, callback) {
   var that = this
-  var req = new Request(callback)
+  var req = new Request(this, callback)
 
   wrapStreams(that, data, req)
 

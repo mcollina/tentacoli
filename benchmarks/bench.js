@@ -6,7 +6,9 @@ var pump = require('pump')
 var net = require('net')
 var childProcess = require('child_process')
 var path = require('path')
-var parallel = require('fastparallel')()
+var parallel = require('fastparallel')({
+  results: false
+})
 var tentacoli = require('../')
 
 var argv = minimist(process.argv.slice(2), {
