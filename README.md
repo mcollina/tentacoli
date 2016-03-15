@@ -39,8 +39,8 @@ function handle (req, reply) {
   console.log('--> request is', req.cmd)
   reply(null, {
     data: 'some data',
-    streams$: {
-      echo: req.streams$.inStream.pipe(through.obj())
+    streams: {
+      echo: req.streams.inStream.pipe(through.obj())
     }
   })
 }
@@ -52,7 +52,7 @@ server.listen(4200, function () {
 
   instance.request({
     cmd: 'a request',
-    streams$: {
+    streams: {
       inStream: from.obj(['hello', 'world'])
     }
   }, function (err, result) {
@@ -63,10 +63,10 @@ server.listen(4200, function () {
     console.log('--> result is', result.data)
     console.log('--> stream data:')
 
-    result.streams$.echo.pipe(through.obj(function (chunk, enc, cb) {
+    result.streams.echo.pipe(through.obj(function (chunk, enc, cb) {
       cb(null, chunk + '\n')
     })).pipe(process.stdout)
-    result.streams$.echo.on('end', function () {
+    result.streams.echo.on('end', function () {
       console.log('--> ended')
       instance.destroy()
       server.close()
@@ -110,10 +110,10 @@ It accepts the following option:
 Sends a request to the remote peer.
 
   * `message` is a standard JS object, but all streams contained in its
-    `streams$` property will be multiplexed and forwarded to the other
+    `streams` property will be multiplexed and forwarded to the other
     peer.
   * `callback` will be called if an error occurred or a response is
-    available. The `res.streams$` property will contain all streams
+    available. The `res.streams` property will contain all streams
     passed by the other peer.
 
 -------------------------------------------------------
@@ -124,11 +124,11 @@ The `'request'` event is emitted when there is an incoming request.
 
   * `req` is the standard JS object coming from [`request`](#request),
      and all the streams contained in its
-    `streams$` property will have been multiplexed and forwarded from
+    `streams` property will have been multiplexed and forwarded from
     the other peer.
   * `reply` is the function to send a reply to the other peer, and it
     follows the standard node callback pattern: `reply(err, res).`
-    The `res.streams$` property should contain all the streams
+    The `res.streams` property should contain all the streams
     that need to be forwarded to the other peer.
 
 <a name="todo"></a>
@@ -203,13 +203,13 @@ var instance = tentacoli()
 pump(stream, instance, stream)
 
 instance.request({
-  streams$: {
+  streams: {
     inStream: from.obj(['hello', 'world'])
   }
 }, function (err, data) {
   if (err) throw err
 
-  var res = data.streams$.inStream
+  var res = data.streams.inStream
   res.on('data', function (chunk) {
     console.log(chunk)
   })

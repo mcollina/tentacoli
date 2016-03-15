@@ -140,13 +140,13 @@ function Response (id) {
 }
 
 function wrapStreams (that, data, msg) {
-  if (data && data.streams$) {
-    msg.streams = Object.keys(data.streams$)
-      .map(mapStream, data.streams$)
+  if (data && data.streams) {
+    msg.streams = Object.keys(data.streams)
+      .map(mapStream, data.streams)
       .map(pipeStream, that)
 
     data = copy(data)
-    delete data.streams$
+    delete data.streams
   }
 
   msg.data = that._opts.codec.encode(data)
@@ -170,7 +170,7 @@ function mapStream (key) {
     objectMode = stream._writableState.objectMode
   }
 
-  // this is the streams$ object
+  // this is the streams object
   return {
     id: null,
     name: key,
@@ -233,7 +233,7 @@ function waitingOrReceived (that, id) {
 
 function unwrapStreams (that, data, decoded) {
   if (decoded.streams.length > 0) {
-    data.streams$ = decoded.streams.reduce(function (acc, container) {
+    data.streams = decoded.streams.reduce(function (acc, container) {
       var stream = waitingOrReceived(that, container.id)
       var writable
       if (container.objectMode) {

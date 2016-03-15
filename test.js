@@ -64,7 +64,7 @@ test('can pass from receiver to sender an object readable stream', function (t) 
 
   s.sender.request(msg, function (err, res) {
     t.error(err, 'no error')
-    res.streams$.result.pipe(callback.obj(function (err, list) {
+    res.streams.result.pipe(callback.obj(function (err, list) {
       t.error(err, 'no error')
       t.deepEqual(list, ['hello', 'streams'], 'is passed through correctly')
     }))
@@ -72,7 +72,7 @@ test('can pass from receiver to sender an object readable stream', function (t) 
 
   s.receiver.on('request', function (req, reply) {
     reply(null, {
-      streams$: {
+      streams: {
         result: from.obj(['hello', 'streams'])
       }
     })
@@ -87,7 +87,7 @@ test('can pass from receiver to sender a writable stream', function (t) {
 
   s.sender.request(null, function (err, res) {
     t.error(err, 'no error')
-    res.streams$.writable.end(msg)
+    res.streams.writable.end(msg)
   })
 
   s.receiver.on('request', function (req, reply) {
@@ -97,7 +97,7 @@ test('can pass from receiver to sender a writable stream', function (t) {
       cb()
     }
     reply(null, {
-      streams$: {
+      streams: {
         writable: writable
       }
     })
@@ -112,7 +112,7 @@ test('can pass from receiver to sender a transform stream as a writable', functi
 
   s.sender.request(null, function (err, res) {
     t.error(err, 'no error')
-    res.streams$.writable.end(msg)
+    res.streams.writable.end(msg)
   })
 
   s.receiver.on('request', function (req, reply) {
@@ -125,7 +125,7 @@ test('can pass from receiver to sender a transform stream as a writable', functi
     transform.pipe(writable)
 
     reply(null, {
-      streams$: {
+      streams: {
         writable: transform
       }
     })
@@ -140,7 +140,7 @@ test('can pass from receiver to sender a transform stream as a readable streams'
 
   s.sender.request(msg, function (err, res) {
     t.error(err, 'no error')
-    res.streams$.result.pipe(callback.obj(function (err, list) {
+    res.streams.result.pipe(callback.obj(function (err, list) {
       t.error(err, 'no error')
       t.deepEqual(list, ['hello', 'streams'], 'is passed through correctly')
     }))
@@ -148,7 +148,7 @@ test('can pass from receiver to sender a transform stream as a readable streams'
 
   s.receiver.on('request', function (req, reply) {
     reply(null, {
-      streams$: {
+      streams: {
         result: from.obj(['hello', 'streams']).pipe(through.obj(function (chunk, enc, cb) {
           cb(null, chunk)
         }))
@@ -163,7 +163,7 @@ test('can pass from sender to receiver an object readable stream', function (t) 
   var s = setup()
   var msg = {
     cmd: 'publish',
-    streams$: {
+    streams: {
       events: from.obj(['hello', 'streams'])
     }
   }
@@ -173,7 +173,7 @@ test('can pass from sender to receiver an object readable stream', function (t) 
   })
 
   s.receiver.on('request', function (req, reply) {
-    req.streams$.events.pipe(callback.obj(function (err, list) {
+    req.streams.events.pipe(callback.obj(function (err, list) {
       t.error(err, 'no error')
       t.deepEqual(list, ['hello', 'streams'], 'is passed through correctly')
       reply()
@@ -194,7 +194,7 @@ test('can pass from sender to receiver an object writable stream', function (t) 
 
   var msg = {
     cmd: 'subscribe',
-    streams$: {
+    streams: {
       events: writable
     }
   }
@@ -204,7 +204,7 @@ test('can pass from sender to receiver an object writable stream', function (t) 
   })
 
   s.receiver.on('request', function (req, reply) {
-    req.streams$.events.end('hello')
+    req.streams.events.end('hello')
     reply()
   })
 })
@@ -221,7 +221,7 @@ test('supports custom encodings', function (t) {
 
   s.sender.request(msg, function (err, res) {
     t.error(err, 'no error')
-    res.streams$.result.pipe(callback.obj(function (err, list) {
+    res.streams.result.pipe(callback.obj(function (err, list) {
       t.error(err, 'no error')
       t.deepEqual(list, expected, 'is passed through correctly')
     }))
@@ -229,7 +229,7 @@ test('supports custom encodings', function (t) {
 
   s.receiver.on('request', function (req, reply) {
     reply(null, {
-      streams$: {
+      streams: {
         result: from.obj(expected).pipe(through.obj(function (chunk, enc, cb) {
           cb(null, chunk)
         }))

@@ -17,8 +17,8 @@ function handle (req, reply) {
   console.log('--> request is', req.cmd)
   reply(null, {
     data: 'some data',
-    streams$: {
-      echo: req.streams$.inStream.pipe(through.obj())
+    streams: {
+      echo: req.streams.inStream.pipe(through.obj())
     }
   })
 }
@@ -30,7 +30,7 @@ server.listen(4200, function () {
 
   instance.request({
     cmd: 'a request',
-    streams$: {
+    streams: {
       inStream: from.obj(['hello', 'world'])
     }
   }, function (err, result) {
@@ -41,10 +41,10 @@ server.listen(4200, function () {
     console.log('--> result is', result.data)
     console.log('--> stream data:')
 
-    result.streams$.echo.pipe(through.obj(function (chunk, enc, cb) {
+    result.streams.echo.pipe(through.obj(function (chunk, enc, cb) {
       cb(null, chunk + '\n')
     })).pipe(process.stdout)
-    result.streams$.echo.on('end', function () {
+    result.streams.echo.on('end', function () {
       console.log('--> ended')
       instance.destroy()
       server.close()

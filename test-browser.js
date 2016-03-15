@@ -34,13 +34,13 @@ test('browser streams', function (t) {
   pump(stream, instance, stream)
 
   instance.request({
-    streams$: {
+    streams: {
       inStream: from.obj(['hello', 'world'])
     }
   }, function (err, data) {
     t.error(err)
 
-    var res = data.streams$.inStream
+    var res = data.streams.inStream
     res.once('data', function (chunk) {
       t.deepEqual(chunk, 'hello')
       res.once('data', function (chunk) {
