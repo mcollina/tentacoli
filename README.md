@@ -277,6 +277,8 @@ around microservices, streams and channels.
 Many thanks to [@mcdonnelldean](http://github.com/mcdonnelldean) for
 providing an excuse to write this random idea out.
 
+This project is kindly sponsored by [nearForm](http://nearform.com).
+
 <a name="license"></a>
 ## License
 
