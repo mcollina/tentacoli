@@ -4,15 +4,13 @@
   "description": "All the ways for doing requests/streams multiplexing over a single stream",
   "main": "tentacoli.js",
   "scripts": {
-    "lint": "standard",
     "browser": "webpack --config webpack.config.js examples/echo-client.js examples/build.js && node echo-server.js",
     "browser-test": "zuul --server echo-server.js --local 8080 --ui tape -- test.js test-browser.js",
-    "test": "tape test.js | faucet",
+    "test": "standard && tape test.js | faucet",
     "clean": "rm examples/build.js &> /dev/null || echo nothing to clean"
   },
   "precommit": [
     "clean",
-    "lint",
     "test"
   ],
   "repository": {
@@ -43,7 +41,7 @@
     "minimist": "^1.2.0",
     "msgpack5": "^3.1.0",
     "pre-commit": "^1.0.10",
-    "standard": "^4.5.4",
+    "standard": "^6.0.0",
     "tape": "^4.0.1",
     "through2": "^2.0.0",
     "transform-loader": "^0.2.3",
@@ -55,7 +53,7 @@
     "fastq": "^1.3.0",
     "inherits": "^2.0.1",
     "multiplex": "^6.2.2",
-    "net-object-stream": "^1.1.0",
+    "net-object-stream": "^2.0.0",
     "protocol-buffers": "^3.1.2",
     "pump": "^1.0.0",
     "readable-stream": "^2.0.2",

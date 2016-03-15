@@ -3,7 +3,8 @@
 var inherits = require('inherits')
 var protobuf = require('protocol-buffers')
 var fs = require('fs')
-var schema = fs.readFileSync(__dirname + '/schema.proto', 'utf8')
+var path = require('path')
+var schema = fs.readFileSync(path.join(__dirname, 'schema.proto'), 'utf8')
 var messages = protobuf(schema)
 var Multiplex = require('multiplex')
 var nos = require('net-object-stream')
@@ -60,7 +61,7 @@ function Tentacoli (opts) {
       reply.toCall = toCall
       reply.stream = stream
       reply.response = response
-      qIn.push(reply, parseInBatch)
+      qIn.push(reply, noop)
     })
 
     stream.on('readable', parseInBatch)
@@ -188,7 +189,6 @@ function pipeStream (container) {
 
   if (container.type === messages.StreamType.Readable ||
       container.type === messages.StreamType.Duplex) {
-
     if (container.objectMode) {
       pump(
         container.stream,
@@ -203,7 +203,6 @@ function pipeStream (container) {
 
   if (container.type === messages.StreamType.Writable ||
       container.type === messages.StreamType.Duplex) {
-
     if (container.objectMode) {
       pump(
         dest,
