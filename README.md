@@ -100,6 +100,8 @@ It accepts the following option:
   [msgpack5](http://npm.im/msgpack5). The default one is JSON.
   This capability is provided by
   [net-object-stream](http://npm.im/net-object-stream).
+* `maxInflight`: max number of concurrent requests in
+  flight at any given moment.
 
 -------------------------------------------------------
 <a name="request"></a>

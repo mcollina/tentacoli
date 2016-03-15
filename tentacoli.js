@@ -35,7 +35,7 @@ function Tentacoli (opts) {
 
   var that = this
 
-  var qIn = this._qIn = fastq(workIn, that._opts.maxInfligth || 100)
+  var qIn = this._qIn = fastq(workIn, that._opts.maxInflight || 100)
 
   function workIn (msg, cb) {
     msg.callback = cb
@@ -75,9 +75,9 @@ function Tentacoli (opts) {
 
   var main = this._main = this.createStream(null)
 
-  var qOut = this._qOut = fastq(work, that._opts.maxInfligth || 100)
+  var parser = this._parser = nos.parser(messageCodec)
 
-  function work (msg, cb) {
+  this._parser.on('message', function (msg) {
     var req = that._requests[msg.id]
     var err = null
     var data = null
@@ -92,15 +92,6 @@ function Tentacoli (opts) {
     }
 
     req.callback(err, data)
-
-    // handle backpressure in the req.callback
-    cb()
-  }
-
-  var parser = this._parser = nos.parser(messageCodec)
-
-  this._parser.on('message', function (msg) {
-    qOut.push(msg, parseBatch)
   })
 
   this._main.on('readable', parseBatch)
