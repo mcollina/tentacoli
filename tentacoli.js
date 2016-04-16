@@ -118,6 +118,7 @@ function Tentacoli (opts) {
     this.func = function reply (err, result) {
       if (err) {
         self.emit('responseError', err)
+        self.response = self.response || {}
         self.response.error = err.message
       } else {
         wrapStreams(self, result, that.response)

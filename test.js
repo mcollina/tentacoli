@@ -56,6 +56,26 @@ test('can pass through an object', function (t) {
   })
 })
 
+test('can handle an error response from a request', function (t) {
+  t.plan(3)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.request(msg, function (err, res) {
+    t.error(err, 'no error')
+  })
+
+  s.receiver.on('request', function (req, reply) {
+    t.deepEqual(req, msg, 'request matches')
+    reply(new Error())
+  })
+
+  s.receiver.on('responseError', function (err) {
+    t.ok(err, 'error exists')
+  })
+})
+
 test('can pass from receiver to sender an object readable stream', function (t) {
   t.plan(3)
 
