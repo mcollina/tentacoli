@@ -63,7 +63,7 @@ test('can handle an error response from a request', function (t) {
   var msg = 'the answer to life, the universe and everything'
 
   s.sender.request(msg, function (err, res) {
-    t.ok(err, 'there is an error')
+    t.ok(err instanceof Error, 'there is an error')
     t.equal(err.message, 'something went wrong')
   })
 
