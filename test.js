@@ -258,3 +258,20 @@ test('supports custom encodings', function (t) {
     })
   })
 })
+
+test('can reply with null', function (t) {
+  t.plan(3)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.request(msg, function (err, res) {
+    t.error(err, 'no error')
+    t.notOk(res, 'empty response')
+  })
+
+  s.receiver.on('request', function (req, reply) {
+    t.deepEqual(req, msg, 'request matches')
+    reply()
+  })
+})
