@@ -275,3 +275,31 @@ test('can reply with null', function (t) {
     reply()
   })
 })
+
+test('errors if piping something errors', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var writable = new Writable({ objectMode: true })
+  var throwErr
+
+  writable.on('pipe', function () {
+    throwErr = new Error('something goes wrong')
+    throw throwErr
+  })
+
+  var msg = {
+    cmd: 'subscribe',
+    streams: {
+      events: writable
+    }
+  }
+
+  s.sender.request(msg, function (err, res) {
+    t.equal(err, throwErr, 'an error happens')
+  })
+
+  s.receiver.on('request', function (req, reply) {
+    t.fail('it never happens')
+  })
+})

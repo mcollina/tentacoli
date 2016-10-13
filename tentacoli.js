@@ -267,7 +267,12 @@ Tentacoli.prototype.request = function (data, callback) {
   var that = this
   var req = new Request(this, callback)
 
-  wrapStreams(that, data, req)
+  try {
+    wrapStreams(that, data, req)
+  } catch (err) {
+    callback(err)
+    return this
+  }
 
   this._requests[req.id] = req
 
