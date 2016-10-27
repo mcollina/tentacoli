@@ -303,3 +303,19 @@ test('errors if piping something errors', function (t) {
     t.fail('it never happens')
   })
 })
+
+test('errors if the connection fails', function (t) {
+  t.plan(2)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.request(msg, function (err) {
+    t.ok(err, 'should error')
+  })
+
+  s.receiver.on('request', function (req, reply) {
+    t.deepEqual(req, msg, 'request matches')
+    s.receiver.end()
+  })
+})
