@@ -304,7 +304,7 @@ test('errors if piping something errors', function (t) {
   })
 })
 
-test('errors if the connection fails', function (t) {
+test('errors if the connection end', function (t) {
   t.plan(2)
 
   var s = setup()
@@ -317,5 +317,61 @@ test('errors if the connection fails', function (t) {
   s.receiver.on('request', function (req, reply) {
     t.deepEqual(req, msg, 'request matches')
     s.receiver.end()
+  })
+})
+
+test('errors if the receiver is destroyed', function (t) {
+  t.plan(3)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.request(msg, function (err) {
+    t.ok(err, 'should error')
+  })
+
+  s.receiver.on('error', function (err) {
+    t.ok(err, 'should error')
+  })
+
+  s.receiver.on('request', function (req, reply) {
+    t.deepEqual(req, msg, 'request matches')
+    s.receiver.destroy(new Error('kaboom'))
+  })
+})
+
+test('errors if the sender is destroyed with error', function (t) {
+  t.plan(3)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.request(msg, function (err) {
+    t.ok(err, 'should error')
+  })
+
+  s.sender.on('error', function (err) {
+    t.ok(err, 'should error')
+  })
+
+  s.receiver.on('request', function (req, reply) {
+    t.deepEqual(req, msg, 'request matches')
+    s.sender.destroy(new Error('kaboom'))
+  })
+})
+
+test('errors if the sender is destroyed', function (t) {
+  t.plan(2)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.request(msg, function (err) {
+    t.ok(err, 'should error')
+  })
+
+  s.receiver.on('request', function (req, reply) {
+    t.deepEqual(req, msg, 'request matches')
+    s.sender.destroy()
   })
 })

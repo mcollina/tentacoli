@@ -106,11 +106,15 @@ function Tentacoli (opts) {
   this._main.on('error', this.emit.bind(this, 'error'))
   this._parser.on('error', this.emit.bind(this, 'error'))
 
-  this.on('finish', function () {
+  this.on('close', closer)
+  this.on('finish', closer)
+
+  function closer () {
     Object.keys(this._requests).forEach(function (reqId) {
       this._requests[reqId].callback(new Error('connection closed'))
+      delete this._requests[reqId]
     }, this)
-  })
+  }
 
   var self = this
   function Reply () {
