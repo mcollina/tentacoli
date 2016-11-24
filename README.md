@@ -81,7 +81,7 @@ Yes, it is long.
 ## API
 
   * <a href="#constructor"><code><b>tentacoli()</b></code></a>
-  * <a href="#request"><code>instalce.<b>request()</b></code></a>
+  * <a href="#request"><code>instance.<b>request()</b></code></a>
   * <a href="#request-event"><code>instance.<b>on('request', cb)</b></code></a>
 
 -------------------------------------------------------
