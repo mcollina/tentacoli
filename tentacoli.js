@@ -52,16 +52,12 @@ function Tentacoli (opts) {
     var parser = nos.parser(messageCodec)
 
     parser.on('message', function (decoded) {
+      if (decoded.fire) return
       var response = new Response(decoded.id)
       var toCall = that._opts.codec.decode(decoded.data)
       unwrapStreams(that, toCall, decoded)
 
       var reply = that._replyPool.get()
-
-      if (decoded.fire) {
-        reply.func(null, null)
-        return
-      }
 
       reply.toCall = toCall
       reply.stream = stream
@@ -83,6 +79,7 @@ function Tentacoli (opts) {
 
   this._parser.on('message', function (msg) {
     var req = that._requests[msg.id]
+    if (!req) return
     var err = null
     var data = null
 
@@ -274,7 +271,7 @@ function unwrapStreams (that, data, decoded) {
 inherits(Tentacoli, Multiplex)
 
 function Request (parent, callback) {
-  this.id = 'req-' + parent._nextId++
+  this.id = parent ? 'req-' + parent._nextId++ : parent
   this.callback = callback
   this.data = null
 }
@@ -299,16 +296,13 @@ Tentacoli.prototype.request = function (data, callback) {
 
 Tentacoli.prototype.fire = function (data, callback) {
   var that = this
-  var req = new Request(this, callback)
+  var req = new Request(null, callback)
 
   try {
     wrapStreams(that, data, req, true)
   } catch (err) {
-    callback(err)
     return this
   }
-
-  this._requests[req.id] = req
 
   nos.writeToStream(req, messageCodec, this._main)
 
