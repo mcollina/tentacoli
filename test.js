@@ -402,7 +402,85 @@ test('fire and forget - send object', function (t) {
   })
 })
 
-test('fire and forget - does not care about errors', function (t) {
+test('fire and forget - can pass from sender to receiver an object readable stream', function (t) {
+  t.plan(2)
+
+  var s = setup()
+  var msg = {
+    cmd: 'publish',
+    streams: {
+      events: from.obj(['hello', 'streams'])
+    }
+  }
+
+  s.sender.fire(msg)
+
+  s.receiver.on('request', function (req, reply) {
+    req.streams.events.pipe(callback.obj(function (err, list) {
+      t.error(err, 'no error')
+      t.deepEqual(list, ['hello', 'streams'], 'is passed through correctly')
+    }))
+  })
+})
+
+test('fire and forget - can pass from sender to receiver an object writable stream', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var writable = new Writable({ objectMode: true })
+
+  writable._write = function (chunk, enc, cb) {
+    t.deepEqual(chunk, 'hello', 'chunk match')
+    cb()
+  }
+
+  var msg = {
+    cmd: 'subscribe',
+    streams: {
+      events: writable
+    }
+  }
+
+  s.sender.fire(msg)
+
+  s.receiver.on('request', function (req, reply) {
+    req.streams.events.end('hello')
+  })
+})
+
+test('fire and forget - should not care if the connection end', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.fire(msg)
+
+  s.receiver.on('request', function (req, reply) {
+    t.deepEqual(req, msg, 'request matches')
+    s.receiver.end()
+  })
+})
+
+test('fire and forget - should not care if the receiver is destroyed', function (t) {
+  t.plan(2)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.fire(msg)
+
+  s.receiver.on('error', function (err) {
+    t.ok(err, 'should error')
+  })
+
+  s.receiver.on('request', function (req, reply) {
+    t.deepEqual(req, msg, 'request matches')
+    s.receiver.destroy(new Error('kaboom'))
+  })
+})
+
+test('fire and forget - should not care about errors', function (t) {
   t.plan(1)
 
   var s = setup()
