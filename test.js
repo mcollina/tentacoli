@@ -236,8 +236,8 @@ test('supports custom encodings', function (t) {
   var s = setup({ codec: msgpack() })
   var msg = { cmd: 'subscribe' }
   var expected = [
-    new Buffer('hello'),
-    new Buffer('streams')
+    Buffer.from('hello'),
+    Buffer.from('streams')
   ]
 
   s.sender.request(msg, function (err, res) {
@@ -371,6 +371,46 @@ test('errors if the sender is destroyed', function (t) {
   })
 
   s.receiver.on('request', function (req, reply) {
+    t.deepEqual(req, msg, 'request matches')
+    s.sender.destroy()
+  })
+})
+
+test('fire and forget - send string', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.fire(msg)
+
+  s.receiver.on('request', function (req) {
+    t.deepEqual(req, msg, 'request matches')
+  })
+})
+
+test('fire and forget - send object', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var msg = { cmd: 'the answer to life, the universe and everything' }
+
+  s.sender.fire(msg)
+
+  s.receiver.on('request', function (req) {
+    t.deepEqual(req, msg, 'request matches')
+  })
+})
+
+test('fire and forget - does not care about errors', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var msg = { cmd: 'the answer to life, the universe and everything' }
+
+  s.sender.fire(msg)
+
+  s.receiver.on('request', function (req) {
     t.deepEqual(req, msg, 'request matches')
     s.sender.destroy()
   })
