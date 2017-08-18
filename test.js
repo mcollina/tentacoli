@@ -494,3 +494,47 @@ test('fire and forget - should not care about errors', function (t) {
     s.sender.destroy()
   })
 })
+
+test('fire and forget - if a writable stream is passed to reply it should be destroyed', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var msg = { cmd: 'subscribe' }
+  var writable = new Writable({ objectMode: true })
+
+  s.sender.fire(msg)
+
+  writable.on('error', function (err) {
+    t.ok(err)
+  })
+
+  writable.on('finish', function () {
+    t.pass('stream closed')
+  })
+
+  s.receiver.on('request', function (req, reply) {
+    reply(null, {
+      streams: writable
+    })
+  })
+})
+
+test('fire and forget - if a writable stream is passed to reply it should be destroyed', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var msg = { cmd: 'subscribe' }
+  const readable = from.obj(['hello', 'streams'])
+
+  s.sender.fire(msg)
+
+  readable.on('close', function () {
+    t.pass('stream closed')
+  })
+
+  s.receiver.on('request', function (req, reply) {
+    reply(null, {
+      streams: readable
+    })
+  })
+})
