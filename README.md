@@ -82,6 +82,7 @@ Yes, it is long.
 
   * <a href="#constructor"><code><b>tentacoli()</b></code></a>
   * <a href="#request"><code>instance.<b>request()</b></code></a>
+  * <a href="#fire"><code>instance.<b>fire()</b></code></a>
   * <a href="#request-event"><code>instance.<b>on('request', cb)</b></code></a>
 
 -------------------------------------------------------
@@ -115,6 +116,17 @@ Sends a request to the remote peer.
   * `callback` will be called if an error occurred or a response is
     available. The `res.streams` property will contain all streams
     passed by the other peer.
+
+-------------------------------------------------------
+<a name="fire"></a>
+### instance.fire(message, callback(err))
+
+Sends a *fire and forget* request to the remote peer.
+
+  * `message` is a standard JS object, but all streams contained in its
+    `streams` property will be multiplexed and forwarded to the other
+    peer.
+  * `callback` will be called if there is an error while sending the message.
 
 -------------------------------------------------------
 <a name="request-event"></a>
