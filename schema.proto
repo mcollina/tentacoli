@@ -3,8 +3,8 @@ message Message {
   optional string id = 1;
   optional string error = 2;
   optional bytes data = 3;
-  optional bool fire = 4;
-  repeated Stream streams = 5;
+  repeated Stream streams = 4;
+  optional bool fire = 5;
 
   message Stream {
     optional string id = 1;
