@@ -390,13 +390,15 @@ test('fire and forget - send string', function (t) {
   })
 })
 
-test('fire and forget - the error callback should not be called', function (t) {
-  t.plan(1)
+test('fire and forget - the error callback should be called on send', function (t) {
+  t.plan(2)
 
   var s = setup()
   var msg = 'the answer to life, the universe and everything'
 
-  s.sender.fire(msg, () => t.fail('this should not be called'))
+  s.sender.fire(msg, function (err) {
+    t.error(err)
+  })
 
   s.receiver.on('request', function (req) {
     t.deepEqual(req, msg, 'request matches')
@@ -411,7 +413,7 @@ test('fire and forget - the error callback should be called in case of error whi
 
   s.sender.fire({
     streams: 'kaboom!'
-  }, err => {
+  }, function (err) {
     t.ok(err)
   })
 
@@ -421,16 +423,18 @@ test('fire and forget - the error callback should be called in case of error whi
 })
 
 test('fire and forget - if reply is called, nothing should happen in the sender', function (t) {
-  t.plan(1)
+  t.plan(2)
 
   var s = setup()
   var msg = 'the answer to life, the universe and everything'
 
-  s.sender.fire(msg, () => t.fail('this should not be called'))
+  s.sender.fire(msg, function (err) {
+    t.error(err)
+  })
 
   s.receiver.on('request', function (req, reply) {
     t.deepEqual(req, msg, 'request matches')
-    reply(null, 'hello!')
+    reply(new Error('kaboom!'))
   })
 })
 
