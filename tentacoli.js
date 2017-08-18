@@ -128,9 +128,11 @@ function Tentacoli (opts) {
     var that = this
 
     this.func = function reply (err, result) {
-      if (that.isFire && result && result.streams) {
-        if (result.streams.destroy) result.streams.destroy()
-        if (result.streams.end) result.streams.end()
+      if (that.isFire) {
+        if (result && result.streams) {
+          if (result.streams.destroy) result.streams.destroy()
+          if (result.streams.end) result.streams.end()
+        }
       } else {
         if (err) {
           self.emit('responseError', err)
@@ -300,13 +302,15 @@ Tentacoli.prototype.request = function (data, callback) {
   return this
 }
 
-Tentacoli.prototype.fire = function (data) {
+Tentacoli.prototype.fire = function (data, callback) {
   var that = this
-  var req = new Request(null)
+  callback = callback || noop
+  var req = new Request(null, callback)
 
   try {
     wrapStreams(that, data, req, true)
   } catch (err) {
+    callback(err)
     return this
   }
 
