@@ -61,6 +61,7 @@ function Tentacoli (opts) {
       reply.toCall = toCall
       reply.stream = stream
       reply.response = response
+      reply.isFire = !!decoded.fire
       qIn.push(reply, noop)
     })
 
@@ -122,22 +123,31 @@ function Tentacoli (opts) {
     this.stream = null
     this.callback = noop
     this.toCall = null
+    this.isFire = null
 
     var that = this
 
     this.func = function reply (err, result) {
-      if (err) {
-        self.emit('responseError', err)
-        that.response.error = err.message
+      if (that.isFire) {
+        if (result && result.streams) {
+          if (result.streams.destroy) result.streams.destroy()
+          if (result.streams.end) result.streams.end()
+        }
       } else {
-        wrapStreams(self, result, that.response)
+        if (err) {
+          self.emit('responseError', err)
+          that.response.error = err.message
+        } else {
+          wrapStreams(self, result, that.response, false)
+        }
+        nos.writeToStream(that.response, messageCodec, that.stream)
       }
-      nos.writeToStream(that.response, messageCodec, that.stream)
       var cb = that.callback
       that.response = null
       that.stream = null
       that.callback = noop
       that.toCall = null
+      that.isFire = null
       self._replyPool.release(that)
       cb()
     }
@@ -149,7 +159,7 @@ function Response (id) {
   this.error = null
 }
 
-function wrapStreams (that, data, msg) {
+function wrapStreams (that, data, msg, isFire) {
   if (data && data.streams) {
     msg.streams = Object.keys(data.streams)
       .map(mapStream, data.streams)
@@ -160,6 +170,7 @@ function wrapStreams (that, data, msg) {
   }
 
   msg.data = that._opts.codec.encode(data)
+  msg.fire = isFire
 
   return msg
 }
@@ -172,7 +183,7 @@ function mapStream (key) {
   if (!stream._transform && stream._readableState && stream._writableState) {
     type = messages.StreamType.Duplex
     objectMode = stream._readableState.objectMode || stream._writableState.objectMode
-  } else if (!stream._writableState || stream._readableState && stream._readableState.pipesCount === 0) {
+  } else if ((!stream._writableState || stream._readableState) && stream._readableState.pipesCount === 0) {
     type = messages.StreamType.Readable
     objectMode = stream._readableState.objectMode
   } else {
@@ -268,7 +279,7 @@ function unwrapStreams (that, data, decoded) {
 inherits(Tentacoli, Multiplex)
 
 function Request (parent, callback) {
-  this.id = 'req-' + parent._nextId++
+  this.id = parent ? 'req-' + parent._nextId++ : null
   this.callback = callback
   this.data = null
 }
@@ -278,7 +289,7 @@ Tentacoli.prototype.request = function (data, callback) {
   var req = new Request(this, callback)
 
   try {
-    wrapStreams(that, data, req)
+    wrapStreams(that, data, req, false)
   } catch (err) {
     callback(err)
     return this
@@ -287,6 +298,23 @@ Tentacoli.prototype.request = function (data, callback) {
   this._requests[req.id] = req
 
   nos.writeToStream(req, messageCodec, this._main)
+
+  return this
+}
+
+Tentacoli.prototype.fire = function (data, callback) {
+  callback = callback || noop
+  var that = this
+  var req = new Request(null)
+
+  try {
+    wrapStreams(that, data, req, true)
+  } catch (err) {
+    callback(err)
+    return this
+  }
+
+  nos.writeToStream(req, messageCodec, this._main, callback)
 
   return this
 }

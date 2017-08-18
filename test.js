@@ -1,5 +1,6 @@
 'use strict'
 
+var Buffer = require('safe-buffer').Buffer
 var test = require('tape')
 var tentacoli = require('./')
 var from = require('from2')
@@ -236,8 +237,8 @@ test('supports custom encodings', function (t) {
   var s = setup({ codec: msgpack() })
   var msg = { cmd: 'subscribe' }
   var expected = [
-    new Buffer('hello'),
-    new Buffer('streams')
+    Buffer.from('hello'),
+    Buffer.from('streams')
   ]
 
   s.sender.request(msg, function (err, res) {
@@ -373,5 +374,215 @@ test('errors if the sender is destroyed', function (t) {
   s.receiver.on('request', function (req, reply) {
     t.deepEqual(req, msg, 'request matches')
     s.sender.destroy()
+  })
+})
+
+test('fire and forget - send string', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.fire(msg)
+
+  s.receiver.on('request', function (req) {
+    t.deepEqual(req, msg, 'request matches')
+  })
+})
+
+test('fire and forget - the error callback should be called on send', function (t) {
+  t.plan(2)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.fire(msg, function (err) {
+    t.error(err)
+  })
+
+  s.receiver.on('request', function (req) {
+    t.deepEqual(req, msg, 'request matches')
+  })
+})
+
+test('fire and forget - the error callback should be called in case of error while sending the message', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.fire({
+    streams: 'kaboom!'
+  }, function (err) {
+    t.ok(err)
+  })
+
+  s.receiver.on('request', function (req) {
+    t.deepEqual(req, msg, 'request matches')
+  })
+})
+
+test('fire and forget - if reply is called, nothing should happen in the sender', function (t) {
+  t.plan(2)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.fire(msg, function (err) {
+    t.error(err)
+  })
+
+  s.receiver.on('request', function (req, reply) {
+    t.deepEqual(req, msg, 'request matches')
+    reply(new Error('kaboom!'))
+  })
+})
+
+test('fire and forget - send object', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var msg = { cmd: 'the answer to life, the universe and everything' }
+
+  s.sender.fire(msg)
+
+  s.receiver.on('request', function (req) {
+    t.deepEqual(req, msg, 'request matches')
+  })
+})
+
+test('fire and forget - can pass from sender to receiver an object readable stream', function (t) {
+  t.plan(2)
+
+  var s = setup()
+  var msg = {
+    cmd: 'publish',
+    streams: {
+      events: from.obj(['hello', 'streams'])
+    }
+  }
+
+  s.sender.fire(msg)
+
+  s.receiver.on('request', function (req, reply) {
+    req.streams.events.pipe(callback.obj(function (err, list) {
+      t.error(err, 'no error')
+      t.deepEqual(list, ['hello', 'streams'], 'is passed through correctly')
+    }))
+  })
+})
+
+test('fire and forget - can pass from sender to receiver an object writable stream', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var writable = new Writable({ objectMode: true })
+
+  writable._write = function (chunk, enc, cb) {
+    t.deepEqual(chunk, 'hello', 'chunk match')
+    cb()
+  }
+
+  var msg = {
+    cmd: 'subscribe',
+    streams: {
+      events: writable
+    }
+  }
+
+  s.sender.fire(msg)
+
+  s.receiver.on('request', function (req, reply) {
+    req.streams.events.end('hello')
+  })
+})
+
+test('fire and forget - should not care if the connection end', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.fire(msg)
+
+  s.receiver.on('request', function (req, reply) {
+    t.deepEqual(req, msg, 'request matches')
+    s.receiver.end()
+  })
+})
+
+test('fire and forget - should not care if the receiver is destroyed', function (t) {
+  t.plan(2)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.fire(msg)
+
+  s.receiver.on('error', function (err) {
+    t.ok(err, 'should error')
+  })
+
+  s.receiver.on('request', function (req, reply) {
+    t.deepEqual(req, msg, 'request matches')
+    s.receiver.destroy(new Error('kaboom'))
+  })
+})
+
+test('fire and forget - should not care about errors', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var msg = { cmd: 'the answer to life, the universe and everything' }
+
+  s.sender.fire(msg)
+
+  s.receiver.on('request', function (req) {
+    t.deepEqual(req, msg, 'request matches')
+    s.sender.destroy()
+  })
+})
+
+test('fire and forget - if a writable stream is passed to reply it should be destroyed', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var msg = { cmd: 'subscribe' }
+  var writable = new Writable({ objectMode: true })
+
+  s.sender.fire(msg)
+
+  writable.on('error', function (err) {
+    t.ok(err)
+  })
+
+  writable.on('finish', function () {
+    t.pass('stream closed')
+  })
+
+  s.receiver.on('request', function (req, reply) {
+    reply(null, {
+      streams: writable
+    })
+  })
+})
+
+test('fire and forget - if a writable stream is passed to reply it should be destroyed', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var msg = { cmd: 'subscribe' }
+  var readable = from.obj(['hello', 'streams'])
+
+  s.sender.fire(msg)
+
+  readable.on('close', function () {
+    t.pass('stream closed')
+  })
+
+  s.receiver.on('request', function (req, reply) {
+    reply(null, {
+      streams: readable
+    })
   })
 })

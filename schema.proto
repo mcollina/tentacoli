@@ -4,6 +4,7 @@ message Message {
   optional string error = 2;
   optional bytes data = 3;
   repeated Stream streams = 4;
+  optional bool fire = 5;
 
   message Stream {
     optional string id = 1;
