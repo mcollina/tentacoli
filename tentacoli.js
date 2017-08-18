@@ -52,7 +52,6 @@ function Tentacoli (opts) {
     var parser = nos.parser(messageCodec)
 
     parser.on('message', function (decoded) {
-      if (decoded.fire) return
       var response = new Response(decoded.id)
       var toCall = that._opts.codec.decode(decoded.data)
       unwrapStreams(that, toCall, decoded)
@@ -62,6 +61,7 @@ function Tentacoli (opts) {
       reply.toCall = toCall
       reply.stream = stream
       reply.response = response
+      reply.isFire = !!decoded.fire
       qIn.push(reply, noop)
     })
 
@@ -79,7 +79,6 @@ function Tentacoli (opts) {
 
   this._parser.on('message', function (msg) {
     var req = that._requests[msg.id]
-    if (!req) return
     var err = null
     var data = null
 
@@ -124,22 +123,29 @@ function Tentacoli (opts) {
     this.stream = null
     this.callback = noop
     this.toCall = null
+    this.isFire = null
 
     var that = this
 
     this.func = function reply (err, result) {
-      if (err) {
-        self.emit('responseError', err)
-        that.response.error = err.message
+      if (that.isFire && result && result.streams) {
+        if (result.streams.destroy) result.streams.destroy()
+        if (result.streams.end) result.streams.end()
       } else {
-        wrapStreams(self, result, that.response, false)
+        if (err) {
+          self.emit('responseError', err)
+          that.response.error = err.message
+        } else {
+          wrapStreams(self, result, that.response, false)
+        }
+        nos.writeToStream(that.response, messageCodec, that.stream)
       }
-      nos.writeToStream(that.response, messageCodec, that.stream)
       var cb = that.callback
       that.response = null
       that.stream = null
       that.callback = noop
       that.toCall = null
+      that.isFire = null
       self._replyPool.release(that)
       cb()
     }
@@ -271,7 +277,7 @@ function unwrapStreams (that, data, decoded) {
 inherits(Tentacoli, Multiplex)
 
 function Request (parent, callback) {
-  this.id = parent ? 'req-' + parent._nextId++ : parent
+  this.id = parent ? 'req-' + parent._nextId++ : null
   this.callback = callback
   this.data = null
 }
@@ -294,9 +300,9 @@ Tentacoli.prototype.request = function (data, callback) {
   return this
 }
 
-Tentacoli.prototype.fire = function (data, callback) {
+Tentacoli.prototype.fire = function (data) {
   var that = this
-  var req = new Request(null, callback)
+  var req = new Request(null)
 
   try {
     wrapStreams(that, data, req, true)
