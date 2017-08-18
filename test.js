@@ -524,7 +524,7 @@ test('fire and forget - if a writable stream is passed to reply it should be des
 
   var s = setup()
   var msg = { cmd: 'subscribe' }
-  const readable = from.obj(['hello', 'streams'])
+  var readable = from.obj(['hello', 'streams'])
 
   s.sender.fire(msg)
 
