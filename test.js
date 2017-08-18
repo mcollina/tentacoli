@@ -390,6 +390,33 @@ test('fire and forget - send string', function (t) {
   })
 })
 
+test('fire and forget - the error callback should not be called', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.fire(msg, () => t.fail('this should not be called'))
+
+  s.receiver.on('request', function (req) {
+    t.deepEqual(req, msg, 'request matches')
+  })
+})
+
+test('fire and forget - if reply is called, nothing should happen in the sender', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.fire(msg, () => t.fail('this should not be called'))
+
+  s.receiver.on('request', function (req, reply) {
+    t.deepEqual(req, msg, 'request matches')
+    reply(null, 'hello!')
+  })
+})
+
 test('fire and forget - send object', function (t) {
   t.plan(1)
 
