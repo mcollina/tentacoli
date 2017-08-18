@@ -303,9 +303,9 @@ Tentacoli.prototype.request = function (data, callback) {
 }
 
 Tentacoli.prototype.fire = function (data, callback) {
-  var that = this
   callback = callback || noop
-  var req = new Request(null, callback)
+  var that = this
+  var req = new Request(null)
 
   try {
     wrapStreams(that, data, req, true)
@@ -314,7 +314,7 @@ Tentacoli.prototype.fire = function (data, callback) {
     return this
   }
 
-  nos.writeToStream(req, messageCodec, this._main)
+  nos.writeToStream(req, messageCodec, this._main, callback)
 
   return this
 }

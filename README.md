@@ -126,7 +126,7 @@ Sends a *fire and forget* request to the remote peer.
   * `message` is a standard JS object, but all streams contained in its
     `streams` property will be multiplexed and forwarded to the other
     peer.
-  * `callback` will be called if there is an error while sending the message.
+  * `callback` will be called if there is an error while sending the message, or after the message has been sent successfully.
 
 -------------------------------------------------------
 <a name="request-event"></a>
