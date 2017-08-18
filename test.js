@@ -403,6 +403,23 @@ test('fire and forget - the error callback should not be called', function (t) {
   })
 })
 
+test('fire and forget - the error callback should be called in case of error while sending the message', function (t) {
+  t.plan(1)
+
+  var s = setup()
+  var msg = 'the answer to life, the universe and everything'
+
+  s.sender.fire({
+    streams: 'kaboom!'
+  }, err => {
+    t.ok(err)
+  })
+
+  s.receiver.on('request', function (req) {
+    t.deepEqual(req, msg, 'request matches')
+  })
+})
+
 test('fire and forget - if reply is called, nothing should happen in the sender', function (t) {
   t.plan(1)
 
