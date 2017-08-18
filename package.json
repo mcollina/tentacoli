@@ -1,6 +1,6 @@
 {
   "name": "tentacoli",
-  "version": "0.6.1",
+  "version": "1.0.0",
   "description": "All the ways for doing requests/streams multiplexing over a single stream",
   "main": "tentacoli.js",
   "scripts": {
